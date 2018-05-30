@@ -83,9 +83,16 @@ func (cs *cpuState) write(addr uint16, val byte) {
 	case addr == 0xd011:
 		// ctrl for PIA setup after RESET, ignored here
 	case addr == 0xd012:
-		cs.NextKeyToDisplay = val & 0x7f
-		cs.KeyDisplayRequested = true
-		cs.ReadyToDisplay = false
+		if cs.DisplayBeenInitted {
+			cs.NextKeyToDisplay = val & 0x7f
+			cs.KeyDisplayRequested = true
+			cs.ReadyToDisplay = false
+		} else {
+			if val == 0x7f {
+				cs.DisplayBeenInitted = true
+			}
+		}
+		// fmt.Println("display:", val&0x7f)
 	case addr == 0xd013:
 		// ctrl for PIA setup after RESET, ignored here
 

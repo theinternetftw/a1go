@@ -29,6 +29,8 @@ type cpuState struct {
 	ReadyToDisplay      bool
 	KeyDisplayRequested bool
 
+	DisplayBeenInitted bool
+
 	Steps  uint64
 	Cycles uint64
 }
@@ -96,6 +98,7 @@ func (cs *cpuState) handleInterrupts() {
 		cs.PC = cs.read16(0xfffc)
 		cs.S -= 3
 		cs.P |= flagIrqDisabled
+		cs.DisplayBeenInitted = false
 	} else if cs.BRK {
 		cs.BRK = false
 		cs.push16(cs.PC + 1)
