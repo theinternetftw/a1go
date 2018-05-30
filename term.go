@@ -64,9 +64,15 @@ func (t *terminal) writeChar(char rune) {
 			char = ' '
 		}
 		if char >= 32 {
-			if char >= 'a' && char <= 'z' {
-				char = char - 'a' + 'A'
+			// woz's ascii trick: flip bit 6
+			char ^= 64
+			// woz's ascii trick: delete bit 5
+			char = ((char >> 1) & 0x60) | (char & 0x1f)
+			char, ok := a1KeyMap[char]
+			if !ok {
+				char = '?'
 			}
+
 			fontChr, ok := t.font.glyphs[char]
 			if !ok {
 				fontChr = t.font.glyphs['?']
@@ -88,6 +94,25 @@ func (t *terminal) writeChar(char rune) {
 		}
 	}
 	t.flipRequested = true
+}
+
+var a1KeyMap = map[rune]rune{
+	0: '@', 1: 'A', 2: 'B', 3: 'C',
+	4: 'D', 5: 'E', 6: 'F', 7: 'G',
+	8: 'H', 9: 'I', 10: 'J', 11: 'K',
+	12: 'L', 13: 'M', 14: 'N', 15: 'O',
+	16: 'P', 17: 'Q', 18: 'R', 19: 'S',
+	20: 'T', 21: 'U', 22: 'V', 23: 'W',
+	24: 'X', 25: 'Y', 26: 'Z', 27: '[',
+	28: '\\', 29: ']', 30: '^', 31: '_',
+	32: ' ', 33: '!', 34: '"', 35: '#',
+	36: '$', 37: '%', 38: '&', 39: '\'',
+	40: '(', 41: ')', 42: '*', 43: '+',
+	44: ',', 45: '-', 46: '.', 47: '/',
+	48: '0', 49: '1', 50: '2', 51: '3',
+	52: '4', 53: '5', 54: '6', 55: '7',
+	56: '8', 57: '9', 58: ':', 59: ';',
+	60: '<', 61: '=', 62: '>', 63: '?',
 }
 
 var a1Font5x7 = font{
@@ -600,7 +625,7 @@ var a1Font5x7 = font{
 		},
 		'8': {
 			0, 1, 1, 1, 0,
-			1, 0, 0, 0, 0,
+			1, 0, 0, 0, 1,
 			1, 0, 0, 0, 1,
 			0, 1, 1, 1, 0,
 			1, 0, 0, 0, 1,
