@@ -39,15 +39,13 @@ func (cs *cpuState) LoadSnapshot(snapBytes []byte) (Emulator, error) {
 
 // Framebuffer returns the current state of the screen
 func (cs *cpuState) Framebuffer() []byte {
-	return cs.terminal.screen
+	return cs.framebuffer()
 }
 
 // FlipRequested indicates if a draw request is pending
 // and clears it before returning
 func (cs *cpuState) FlipRequested() bool {
-	result := cs.flipRequested
-	cs.flipRequested = false
-	return result
+	return cs.flipRequested()
 }
 
 func (cs *cpuState) Step() {

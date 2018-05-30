@@ -10,8 +10,7 @@ type cpuState struct {
 
 	Screen [240 * 240 * 4]byte
 
-	flipRequested bool
-	terminal      terminal
+	terminal terminal
 
 	PC            uint16
 	P, A, X, Y, S byte
@@ -35,6 +34,16 @@ type cpuState struct {
 	Cycles uint64
 }
 
+func (cs *cpuState) flipRequested() bool {
+	result := cs.terminal.flipRequested
+	cs.terminal.flipRequested = false
+	return result
+}
+
+func (cs *cpuState) framebuffer() []byte {
+	return cs.terminal.screen
+}
+
 func (cs *cpuState) runCycles(cycles uint) {
 	for i := uint(0); i < cycles; i++ {
 		cs.Cycles++
@@ -43,9 +52,8 @@ func (cs *cpuState) runCycles(cycles uint) {
 		if cs.KeyDisplayRequested && cs.ReadyToDisplay {
 			cs.KeyDisplayRequested = false
 			cs.terminal.writeChar(rune(cs.NextKeyToDisplay))
-			cs.flipRequested = true
 		}
-		if !cs.flipRequested {
+		if !cs.terminal.flipRequested {
 			cs.ReadyToDisplay = true
 		}
 	}
@@ -99,6 +107,7 @@ func (cs *cpuState) handleInterrupts() {
 		cs.S -= 3
 		cs.P |= flagIrqDisabled
 		cs.DisplayBeenInitted = false
+		cs.terminal.clearScreen()
 	} else if cs.BRK {
 		cs.BRK = false
 		cs.push16(cs.PC + 1)

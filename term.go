@@ -1,10 +1,11 @@
 package a1go
 
 type terminal struct {
-	x, y   int
-	w, h   int
-	screen []byte // w*h*4
-	font   font
+	x, y          int
+	w, h          int
+	screen        []byte // w*h*4
+	font          font
+	flipRequested bool
 }
 
 type font struct {
@@ -22,6 +23,7 @@ func (t *terminal) newline() {
 			t.screen[i] = 0
 		}
 	}
+	t.flipRequested = true
 }
 
 func (t *terminal) advanceChar() {
@@ -40,6 +42,9 @@ func (t *terminal) clearScreen() {
 	for i := 0; i < len(t.screen); i++ {
 		t.screen[i] = 0
 	}
+	t.x = 0
+	t.y = 0
+	t.flipRequested = true
 }
 
 func (t *terminal) writeString(str string) {
@@ -82,6 +87,7 @@ func (t *terminal) writeChar(char rune) {
 			t.advanceChar()
 		}
 	}
+	t.flipRequested = true
 }
 
 var a1Font5x7 = font{
