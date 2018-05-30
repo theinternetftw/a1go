@@ -5,6 +5,8 @@ import (
 	"github.com/theinternetftw/a1go/profiling"
 	"github.com/theinternetftw/a1go/platform"
 
+	"golang.org/x/mobile/event/key"
+
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -37,29 +39,35 @@ func startEmu(window *platform.WindowState, emu a1go.Emulator) {
 
 	snapshotPrefix := "a1go" + ".snapshot"
 
-	snapshotMode := 'x'
 
 	for {
-		window.Mutex.Lock()
-
 		newInput := a1go.Input {}
-		window.CopyKeyCharArray(newInput.Keys[:])
-
+		snapshotMode := 'x'
 		numDown := 'x'
-		/*
-		for r := '0'; r <= '9'; r++ {
-			if window.CharIsDown(r) {
-				numDown = r
-				break
-			}
-		}
-		if window.CharIsDown('m') {
-			snapshotMode = 'm'
-		} else if window.CharIsDown('l') {
-			snapshotMode = 'l'
-		}
-		*/
 
+		window.Mutex.Lock()
+		{
+			window.CopyKeyCharArray(newInput.Keys[:])
+			if window.CodeIsDown(key.CodeF1) {
+				newInput.ResetButton = true
+			}
+			if window.CodeIsDown(key.CodeF2) {
+				newInput.ClearScreenButton = true
+			}
+			/*
+			for r := '0'; r <= '9'; r++ {
+				if window.CharIsDown(r) {
+					numDown = r
+					break
+				}
+			}
+			if window.CharIsDown('m') {
+				snapshotMode = 'm'
+			} else if window.CharIsDown('l') {
+				snapshotMode = 'l'
+			}
+			*/
+		}
 		window.Mutex.Unlock()
 
 		if numDown > '0' && numDown <= '9' {

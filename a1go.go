@@ -205,6 +205,15 @@ func (cs *cpuState) updateInput(input Input) {
 		}
 		cs.LastKeyState[i] = k
 	}
+
+	if input.ResetButton {
+		cs.RESET = true
+	}
+	if input.ClearScreenButton {
+		// looking at real apple1 demos, I think
+		// this is the real behavior...
+		cs.terminal.newline()
+	}
 }
 
 func newState(romBytes []byte) *cpuState {

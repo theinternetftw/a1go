@@ -17,7 +17,9 @@ type Emulator interface {
 // TODO: add dt?
 type Input struct {
 	// Keys is a bool array of keydown state
-	Keys [256]bool
+	Keys              [256]bool
+	ResetButton       bool
+	ClearScreenButton bool
 }
 
 func (cs *cpuState) UpdateInput(input Input) {
