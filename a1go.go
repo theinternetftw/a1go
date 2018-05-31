@@ -12,6 +12,8 @@ type cpuState struct {
 
 	terminal terminal
 
+	autokeyInput []byte
+
 	PC            uint16
 	P, A, X, Y, S byte
 
@@ -183,27 +185,33 @@ func (cs *cpuState) step() {
 }
 
 func (cs *cpuState) updateInput(input Input) {
-	for i, k := range input.Keys {
+
+	if len(cs.autokeyInput) > 0 {
+		if !cs.NewKeyWasPressed {
+			input.Keys[cs.autokeyInput[0]] = true
+			cs.autokeyInput = cs.autokeyInput[1:]
+		}
+	}
+
+	// convert lower to upper case
+	for i := 0; i < 26; i++ {
+		cap := 'A' + i
+		low := 'a' + i
+		input.Keys[cap] = input.Keys[cap] || input.Keys[low]
+		input.Keys[low] = false
+	}
+
+	for i, down := range input.Keys {
 		if i > 127 {
 			continue
 		}
 
-		// for now? lower to upper, ignore real upper
-		{
-			if i >= 'A' && i <= 'Z' {
-				continue
-			}
-			if i >= 'a' && i <= 'z' {
-				i = i - 'a' + 'A'
-			}
-		}
-
-		if !cs.LastKeyState[i] && k {
+		if !cs.LastKeyState[i] && down {
 			cs.NewKeyInput = byte(i)
 			cs.NewKeyWasPressed = true
 			cs.DebugKeyPressed = true
 		}
-		cs.LastKeyState[i] = k
+		cs.LastKeyState[i] = down
 	}
 
 	if input.ResetButton {
@@ -216,7 +224,13 @@ func (cs *cpuState) updateInput(input Input) {
 	}
 }
 
-func newState(romBytes []byte) *cpuState {
+func newStateWithAutokeyInput(input []byte) *cpuState {
+	cs := newState()
+	cs.autokeyInput = input
+	return cs
+}
+
+func newState() *cpuState {
 	cs := cpuState{
 		Mem:            mem{},
 		RESET:          true,

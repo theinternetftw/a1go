@@ -17,13 +17,20 @@ func main() {
 
 	defer profiling.Start().Stop()
 
-	//assert(len(os.Args) == 2, "usage: ./a1go ROM_FILENAME")
-	//romFilename := os.Args[1]
+	assert(len(os.Args) == 2 || len(os.Args) == 1, "usage: ./a1go [INPUT_FILENAME]")
 
-	//romBytes, err := ioutil.ReadFile(romFilename)
-	//dieIf(err)
+	var emu a1go.Emulator
 
-	emu := a1go.NewEmulator([]byte{})
+	if len(os.Args) == 2 {
+		romFilename := os.Args[1]
+		inputBytes, err := ioutil.ReadFile(romFilename)
+		dieIf(err)
+
+		emu = a1go.NewEmulatorWithAutokeyInput(inputBytes)
+	} else {
+		emu = a1go.NewEmulator()
+	}
+
 
 	screenW := 240
 	screenH := 192
@@ -38,7 +45,6 @@ func startEmu(window *platform.WindowState, emu a1go.Emulator) {
 	lastVBlankTime := time.Now()
 
 	snapshotPrefix := "a1go" + ".snapshot"
-
 
 	for {
 		newInput := a1go.Input {}

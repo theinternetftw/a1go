@@ -27,8 +27,13 @@ func (cs *cpuState) UpdateInput(input Input) {
 }
 
 // NewEmulator creates an emulation session
-func NewEmulator(rom []byte) Emulator {
-	return newState(rom)
+func NewEmulator() Emulator {
+	return newState()
+}
+
+// NewEmulatorWithAutokeyInput creates an emulation session with input to be autokeyed in from the start
+func NewEmulatorWithAutokeyInput(input []byte) Emulator {
+	return newStateWithAutokeyInput(input)
 }
 
 func (cs *cpuState) MakeSnapshot() []byte {
