@@ -51,6 +51,8 @@ func startEmu(window *platform.WindowState, emu a1go.Emulator) {
 		snapshotMode := 'x'
 		numDown := 'x'
 
+		hyperMode := false
+
 		window.Mutex.Lock()
 		{
 			window.CopyKeyCharArray(newInput.Keys[:])
@@ -59,6 +61,9 @@ func startEmu(window *platform.WindowState, emu a1go.Emulator) {
 			}
 			if window.CodeIsDown(key.CodeF2) {
 				newInput.ClearScreenButton = true
+			}
+			if window.CodeIsDown(key.CodeF11) {
+				hyperMode = true
 			}
 			/*
 			for r := '0'; r <= '9'; r++ {
@@ -111,7 +116,7 @@ func startEmu(window *platform.WindowState, emu a1go.Emulator) {
 
 			spent := time.Now().Sub(lastVBlankTime)
 			toWait := 17*time.Millisecond - spent
-			if toWait > time.Duration(0) {
+			if !hyperMode && toWait > time.Duration(0) {
 				<-time.NewTimer(toWait).C
 			}
 			lastVBlankTime = time.Now()
