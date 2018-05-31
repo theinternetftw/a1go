@@ -2,10 +2,12 @@ package a1go
 
 import "fmt"
 
-const internalRAMSize = 0x1000
+const ramBank1Size = 0xD000
+const ramBank2Size = 0x1000
 
 type mem struct {
-	InternalRAM [internalRAMSize]byte
+	RAMBank1 [ramBank1Size]byte
+	RAMBank2 [ramBank1Size]byte
 }
 
 // only 256B, but it takes up a 4k slot...
@@ -47,8 +49,8 @@ var monitorROM = [4096]byte{
 func (cs *cpuState) read(addr uint16) byte {
 	var val byte
 	switch {
-	case addr < 0x1000:
-		val = cs.Mem.InternalRAM[addr]
+	case addr < ramBank1Size:
+		val = cs.Mem.RAMBank1[addr]
 
 	case addr == 0xd010:
 		val = 0x80 | cs.NewKeyInput
@@ -57,6 +59,9 @@ func (cs *cpuState) read(addr uint16) byte {
 		val = boolBit(cs.NewKeyWasPressed, 7)
 	case addr == 0xd012:
 		val = boolBit(!cs.ReadyToDisplay, 7) | cs.NextKeyToDisplay
+
+	case addr >= 0xE000 && addr < 0xF000:
+		val = cs.Mem.RAMBank2[addr-0xE000]
 
 	case addr >= 0xff00:
 		val = monitorROM[addr-0xff00]
@@ -77,8 +82,8 @@ func (cs *cpuState) read16(addr uint16) uint16 {
 
 func (cs *cpuState) write(addr uint16, val byte) {
 	switch {
-	case addr < internalRAMSize:
-		cs.Mem.InternalRAM[addr] = val
+	case addr < ramBank1Size:
+		cs.Mem.RAMBank1[addr] = val
 
 	case addr == 0xd011:
 		// ctrl for PIA setup after RESET, ignored here
@@ -96,7 +101,10 @@ func (cs *cpuState) write(addr uint16, val byte) {
 	case addr == 0xd013:
 		// ctrl for PIA setup after RESET, ignored here
 
-	case addr >= 0xf000:
+	case addr >= 0xE000 && addr < 0xF000:
+		cs.Mem.RAMBank2[addr-0xE000] = val
+
+	case addr >= 0xff00:
 		// nop, this is ROM
 
 	default:
