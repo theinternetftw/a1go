@@ -201,6 +201,25 @@ func (cs *cpuState) updateInput(input Input) {
 		input.Keys[low] = false
 	}
 
+	// apple1 monitor expects underscore as a "rubout" / pseudo-backspace key
+	//
+	// interesting thought here: https://www.applefritter.com/content/how-get-backspace-rubout-working-apple-i-clone-smc-kr3600-keyboard-encoder
+	//
+	// maybe woz made a mistake and thought the underscore character that
+	// appeared on some keyboards when you hit DEL (0x7f) was just the regular
+	// underscore. Which it wasn't, apparently.
+	//
+	// TODO: decide if this is the right thing to do, or just have people
+	// figure out that they have to type underscores to rubout chars on the
+	// monitor (not backspace, as the video term can't back up).
+	//
+	// e.g. this might break programs that expect you to be able to type \b's.
+	//
+	if input.Keys[8] {
+		input.Keys[8] = false
+		input.Keys[0x5f] = true
+	}
+
 	for i, down := range input.Keys {
 		if i > 127 {
 			continue

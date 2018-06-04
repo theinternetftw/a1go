@@ -66,7 +66,7 @@ func (cs *cpuState) read(addr uint16) byte {
 	case addr >= 0xff00:
 		val = monitorROM[addr-0xff00]
 	default:
-		emuErr(fmt.Sprintf("unimplemented read: %v", addr))
+		emuErr(fmt.Sprintf("unimplemented read: 0x%04x", addr))
 	}
 	if showMemReads {
 		fmt.Printf("read(0x%04x) = 0x%02x\n", addr, val)
