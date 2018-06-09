@@ -1,10 +1,17 @@
 package a1go
 
-func boolBit(b bool, bNum byte) byte {
-	if !b {
-		return 0
+func boolByte(b bool) byte {
+	if b {
+		return 1
 	}
-	return 1 << bNum
+	return 0
+}
+
+func boolBit(b bool, bNum byte) byte {
+	if b {
+		return 1 << bNum
+	}
+	return 0
 }
 
 func ifBool(b bool, fn func()) {

@@ -602,42 +602,85 @@ func (cs *cpuState) stepOpcode() {
 }
 
 func (cs *cpuState) adcAndSetFlags(val byte) byte {
-	var bigResult, i8Result int
-	if cs.P&flagCarry == flagCarry {
-		bigResult = int(cs.A) + int(val) + 1
-		i8Result = int(int8(cs.A)) + int(int8(val)) + 1
-	} else {
-		bigResult = int(cs.A) + int(val)
-		i8Result = int(int8(cs.A)) + int(int8(val))
-	}
-	result := byte(bigResult)
-	cs.setOverflowFlag(i8Result < -128 || i8Result > 127)
+
+	carry := boolByte(cs.P&flagCarry == flagCarry)
+	n1A, n1Val := cs.A&0x0f, val&0x0f
+	n1Result := (n1A + n1Val + carry) & 0x0f
+
+	var halfCarry byte
 	if cs.P&flagDecimal == flagDecimal {
-		cs.setCarryFlag(bigResult > 0x99)
-		panic("decimal mode ADC not yet implemented")
+		halfCarry = boolByte(n1A+n1Val+carry > 0x09)
 	} else {
-		cs.setCarryFlag(bigResult > 0xff)
-		cs.setZeroNeg(result)
+		halfCarry = (n1A + n1Val + carry) >> 4
 	}
+
+	n2A, n2Val := cs.A>>4, val>>4
+	n2Result := (n2A + n2Val + halfCarry) & 0x0f
+
+	var carryOut byte
+	if cs.P&flagDecimal == flagDecimal {
+		carryOut = boolByte(n2A+n2Val+halfCarry > 0x09)
+	} else {
+		carryOut = (n2A + n2Val + halfCarry) >> 4
+	}
+
+	cs.setZeroFlag(n1Result == 0 && n2Result == 0)
+	cs.setNegFlag(n2Result&0x08 == 0x08)
+	cs.setCarryFlag(carryOut == 1)
+	n2ResultForV := (int8(n2A<<4) >> 4) + (int8(n2Val<<4) >> 4) + int8(halfCarry)
+	cs.setOverflowFlag(n2ResultForV < -8 || n2ResultForV > 7)
+
+	if cs.P&flagDecimal == flagDecimal {
+		if halfCarry == 1 {
+			n1Result = (n1Result + 0x06) & 0x0f
+		}
+		if carryOut == 1 {
+			n2Result = (n2Result + 0x06) & 0x0f
+		}
+	}
+
+	result := n1Result | (n2Result << 4)
+
 	return result
 }
 
 func (cs *cpuState) sbcAndSetFlags(val byte) byte {
-	var bigResult, i8Result int
-	if cs.P&flagCarry == 0 { // sbc uses carry's complement
-		bigResult = int(cs.A) - int(val) - 1
-		i8Result = int(int8(cs.A)) - int(int8(val)) - 1
-	} else {
-		bigResult = int(cs.A) - int(val)
-		i8Result = int(int8(cs.A)) - int(int8(val))
-	}
-	result := byte(bigResult)
+
+	// NOTE: remember, carry is inverted for SBC
+	carry := boolByte(cs.P&flagCarry == 0)
+	n1A, n1Val := cs.A&0x0f, val&0x0f
+	n1Result := (n1A - n1Val - carry) & 0x0f
+
+	// NOTE: no half-carry dec mode adjust needed for sbc, only adc
+	halfCarry := boolByte(n1A-n1Val-carry > 0x0f)
+
+	n2A, n2Val := cs.A>>4, val>>4
+	n2Result := (n2A - n2Val - halfCarry) & 0x0f
+
+	var carryOut byte
 	if cs.P&flagDecimal == flagDecimal {
-		panic("decimal mode SBC not yet implemented")
+		carryOut = boolByte(n2A-n2Val-halfCarry > 0x09)
+	} else {
+		carryOut = (n2A - n2Val - halfCarry) >> 4
 	}
-	cs.setOverflowFlag(i8Result < -128 || i8Result > 127)
-	cs.setCarryFlag(bigResult >= 0) // once again, set to "add carry"'s complement
-	cs.setZeroNeg(result)
+
+	cs.setZeroFlag(n1Result == 0 && n2Result == 0)
+	cs.setNegFlag(n2Result&0x08 == 0x08)
+	cs.setCarryFlag(carryOut == 0)
+	n2ResultForV := (int8(n2A<<4) >> 4) - (int8(n2Val<<4) >> 4) - int8(halfCarry)
+	cs.setOverflowFlag(n2ResultForV < -8 || n2ResultForV > 7)
+
+	if cs.P&flagDecimal == flagDecimal {
+		if halfCarry == 1 {
+			n1Result = (n1Result - 0x06) & 0x0f
+		}
+		if carryOut == 1 {
+			n2Result = (n2Result - 0x06) & 0x0f
+		}
+	}
+
+	result := n1Result | (n2Result << 4)
+
 	return result
 }
 
@@ -662,6 +705,14 @@ func (cs *cpuState) setZeroFlag(test bool) {
 		cs.P |= flagZero
 	} else {
 		cs.P &^= flagZero
+	}
+}
+
+func (cs *cpuState) setNegFlag(test bool) {
+	if test {
+		cs.P |= flagNeg
+	} else {
+		cs.P &^= flagNeg
 	}
 }
 
