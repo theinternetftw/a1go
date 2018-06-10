@@ -2,139 +2,10 @@ package a1go
 
 import "fmt"
 
-type g6502 struct {
-	PC            uint16
-	P, A, X, Y, S byte
-
-	IRQ, BRK, NMI, RESET bool
-	LastStepsP           byte
-
-	runCycles func(uint)
-	write     func(uint16, byte)
-	read      func(uint16) byte
-
-	Steps uint64
-}
-
-const (
-	flagNeg         = 0x80
-	flagOverflow    = 0x40
-	flagOnStack     = 0x20
-	flagBrk         = 0x10
-	flagDecimal     = 0x08
-	flagIrqDisabled = 0x04
-	flagZero        = 0x02
-	flagCarry       = 0x01
-)
-
-func (cs *g6502) push16(val uint16) {
-	cs.push(byte(val >> 8))
-	cs.push(byte(val))
-}
-func (cs *g6502) push(val byte) {
-	cs.write(0x100+uint16(cs.S), val)
-	cs.S--
-}
-
-func (cs *g6502) pop16() uint16 {
-	val := uint16(cs.pop())
-	val |= uint16(cs.pop()) << 8
-	return val
-}
-func (cs *g6502) pop() byte {
-	cs.S++
-	result := cs.read(0x100 + uint16(cs.S))
-	return result
-}
-
-// interrupt info lags behind actual P flag,
-// so we need the delay provided by having
-// a LastStepsP
-func (cs *g6502) interruptsEnabled() bool {
-	return cs.LastStepsP&flagIrqDisabled == 0
-}
-
-func (cs *g6502) step() {
-	cs.Steps++
-	cs.handleInterrupts()
-	cs.stepOpcode()
-}
-
-func (cs *g6502) handleInterrupts() {
-	if cs.RESET {
-		cs.RESET = false
-		cs.PC = cs.read16(0xfffc)
-		cs.S -= 3
-		cs.P |= flagIrqDisabled
-	} else if cs.BRK {
-		cs.BRK = false
-		cs.push16(cs.PC + 1)
-		cs.push(cs.P | flagBrk | flagOnStack)
-		cs.P |= flagIrqDisabled
-		cs.PC = cs.read16(0xfffe)
-	} else if cs.NMI {
-		cs.NMI = false
-		cs.push16(cs.PC)
-		cs.push(cs.P | flagOnStack)
-		cs.P |= flagIrqDisabled
-		cs.PC = cs.read16(0xfffa)
-	} else if cs.IRQ {
-		cs.IRQ = false
-		if cs.interruptsEnabled() {
-			cs.push16(cs.PC)
-			cs.push(cs.P | flagOnStack)
-			cs.P |= flagIrqDisabled
-			cs.PC = cs.read16(0xfffe)
-		}
-	}
-	cs.LastStepsP = cs.P
-}
-
-func (cs *g6502) read16(addr uint16) uint16 {
-	low := uint16(cs.read(addr))
-	high := uint16(cs.read(addr + 1))
-	return (high << 8) | low
-}
-
-func (cs *g6502) write16(addr uint16, val uint16) {
-	cs.write(addr, byte(val))
-	cs.write(addr+1, byte(val>>8))
-}
-
-func (cs *g6502) debugStatusLine() string {
-	opcode := cs.read(cs.PC)
-	b2, b3 := cs.read(cs.PC+1), cs.read(cs.PC+2)
-	sp := 0x100 + uint16(cs.S)
-	s1, s2, s3 := cs.read(sp), cs.read(sp+1), cs.read(sp+2)
-	return fmt.Sprintf("Steps: %09d ", cs.Steps) +
-		fmt.Sprintf("PC:%04x ", cs.PC) +
-		fmt.Sprintf("*PC[:3]:%02x%02x%02x ", opcode, b2, b3) +
-		fmt.Sprintf("*S[:3]:%02x%02x%02x ", s1, s2, s3) +
-		fmt.Sprintf("opcode:%v ", opcodeNames[opcode]) +
-		fmt.Sprintf("A:%02x ", cs.A) +
-		fmt.Sprintf("X:%02x ", cs.X) +
-		fmt.Sprintf("Y:%02x ", cs.Y) +
-		fmt.Sprintf("P:%02x ", cs.P) +
-		fmt.Sprintf("S:%02x ", cs.S)
-}
-
 func (cs *g6502) opFn(cycles uint, instLen uint16, fn func()) {
 	fn()
 	cs.PC += instLen
 	cs.runCycles(cycles)
-}
-
-func (cs *g6502) setZeroNeg(val byte) {
-	if val == 0 {
-		cs.P |= flagZero
-	} else {
-		cs.P &^= flagZero
-	}
-	if val&0x80 == 0x80 {
-		cs.P |= flagNeg
-	} else {
-		cs.P &^= flagNeg
-	}
 }
 
 func (cs *g6502) setRegOp(numCycles uint, instLen uint16, dst *byte, src byte, flagFn func(byte)) {
@@ -149,8 +20,30 @@ func (cs *g6502) storeOp(numCycles uint, instLen uint16, addr uint16, val byte, 
 	cs.runCycles(numCycles)
 	flagFn(val)
 }
-
-func (cs *g6502) setNoFlags(val byte) {}
+func (cs *g6502) cmpOp(nCycles uint, instLen uint16, reg byte, val byte) {
+	cs.runCycles(nCycles)
+	cs.PC += instLen
+	cs.setZeroNeg(reg - val)
+	cs.setCarryFlag(reg >= val)
+}
+func (cs *g6502) jmpOp(nCycles uint, instLen uint16, newPC uint16) {
+	cs.runCycles(nCycles)
+	cs.PC = newPC
+}
+func (cs *g6502) branchOpRel(test bool) {
+	if test {
+		offs := int8(cs.read(cs.PC + 1))
+		newPC := uint16(int(cs.PC+2) + int(offs))
+		if newPC&0xff00 != cs.PC&0xff00 {
+			cs.runCycles(4)
+		} else {
+			cs.runCycles(3)
+		}
+		cs.PC = newPC
+	} else {
+		cs.opFn(2, 2, func() {})
+	}
+}
 
 // cs.PC must be in right place, obviously
 func (cs *g6502) getYPostIndexedAddr() (uint16, uint) {
@@ -800,38 +693,6 @@ func (cs *g6502) sbcAndSetFlags(val byte) byte {
 	return result
 }
 
-func (cs *g6502) setOverflowFlag(test bool) {
-	if test {
-		cs.P |= flagOverflow
-	} else {
-		cs.P &^= flagOverflow
-	}
-}
-
-func (cs *g6502) setCarryFlag(test bool) {
-	if test {
-		cs.P |= flagCarry
-	} else {
-		cs.P &^= flagCarry
-	}
-}
-
-func (cs *g6502) setZeroFlag(test bool) {
-	if test {
-		cs.P |= flagZero
-	} else {
-		cs.P &^= flagZero
-	}
-}
-
-func (cs *g6502) setNegFlag(test bool) {
-	if test {
-		cs.P |= flagNeg
-	} else {
-		cs.P &^= flagNeg
-	}
-}
-
 func (cs *g6502) aslAndSetFlags(val byte) byte {
 	result := val << 1
 	cs.setCarryFlag(val&0x80 == 0x80)
@@ -870,31 +731,4 @@ func (cs *g6502) bitAndSetFlags(val byte) {
 	cs.P &^= 0xC0
 	cs.P |= val & 0xC0
 	cs.setZeroFlag(cs.A&val == 0)
-}
-
-func (cs *g6502) cmpOp(nCycles uint, instLen uint16, reg byte, val byte) {
-	cs.runCycles(nCycles)
-	cs.PC += instLen
-	cs.setZeroNeg(reg - val)
-	cs.setCarryFlag(reg >= val)
-}
-
-func (cs *g6502) jmpOp(nCycles uint, instLen uint16, newPC uint16) {
-	cs.runCycles(nCycles)
-	cs.PC = newPC
-}
-
-func (cs *g6502) branchOpRel(test bool) {
-	if test {
-		offs := int8(cs.read(cs.PC + 1))
-		newPC := uint16(int(cs.PC+2) + int(offs))
-		if newPC&0xff00 != cs.PC&0xff00 {
-			cs.runCycles(4)
-		} else {
-			cs.runCycles(3)
-		}
-		cs.PC = newPC
-	} else {
-		cs.opFn(2, 2, func() {})
-	}
 }
