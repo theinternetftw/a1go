@@ -45,22 +45,22 @@ var monitorROM = [256]byte{
 	0x00, 0x00, 0x00, 0x0F, 0x00, 0xFF, 0x00, 0x00,
 }
 
-func (cs *cpuState) read(addr uint16) byte {
+func (emu *emuState) read(addr uint16) byte {
 	var val byte
 	switch {
 	case addr < ramBank1Size:
-		val = cs.Mem.RAMBank1[addr]
+		val = emu.Mem.RAMBank1[addr]
 
 	case addr == 0xd010:
-		val = 0x80 | cs.NewKeyInput
-		cs.NewKeyWasPressed = false
+		val = 0x80 | emu.NewKeyInput
+		emu.NewKeyWasPressed = false
 	case addr == 0xd011:
-		val = boolBit(cs.NewKeyWasPressed, 7)
+		val = boolBit(emu.NewKeyWasPressed, 7)
 	case addr == 0xd012:
-		val = boolBit(!cs.ReadyToDisplay, 7) | cs.NextKeyToDisplay
+		val = boolBit(!emu.ReadyToDisplay, 7) | emu.NextKeyToDisplay
 
 	case addr >= 0xE000 && addr < 0xF000:
-		val = cs.Mem.RAMBank2[addr-0xE000]
+		val = emu.Mem.RAMBank2[addr-0xE000]
 
 	case addr >= 0xff00:
 		val = monitorROM[addr-0xff00]
@@ -73,27 +73,21 @@ func (cs *cpuState) read(addr uint16) byte {
 	return val
 }
 
-func (cs *cpuState) read16(addr uint16) uint16 {
-	low := uint16(cs.read(addr))
-	high := uint16(cs.read(addr + 1))
-	return (high << 8) | low
-}
-
-func (cs *cpuState) write(addr uint16, val byte) {
+func (emu *emuState) write(addr uint16, val byte) {
 	switch {
 	case addr < ramBank1Size:
-		cs.Mem.RAMBank1[addr] = val
+		emu.Mem.RAMBank1[addr] = val
 
 	case addr == 0xd011:
 		// ctrl for PIA setup after RESET, ignored here
 	case addr == 0xd012:
-		if cs.DisplayBeenInitted {
-			cs.NextKeyToDisplay = val & 0x7f
-			cs.KeyDisplayRequested = true
-			cs.ReadyToDisplay = false
+		if emu.DisplayBeenInitted {
+			emu.NextKeyToDisplay = val & 0x7f
+			emu.KeyDisplayRequested = true
+			emu.ReadyToDisplay = false
 		} else {
 			if val == 0x7f {
-				cs.DisplayBeenInitted = true
+				emu.DisplayBeenInitted = true
 			}
 		}
 		// fmt.Println("display:", val&0x7f)
@@ -101,7 +95,7 @@ func (cs *cpuState) write(addr uint16, val byte) {
 		// ctrl for PIA setup after RESET, ignored here
 
 	case addr >= 0xE000 && addr < 0xF000:
-		cs.Mem.RAMBank2[addr-0xE000] = val
+		emu.Mem.RAMBank2[addr-0xE000] = val
 
 	case addr >= 0xff00:
 		// nop, this is ROM
@@ -112,9 +106,4 @@ func (cs *cpuState) write(addr uint16, val byte) {
 	if showMemWrites {
 		fmt.Printf("write(0x%04x, 0x%02x)\n", addr, val)
 	}
-}
-
-func (cs *cpuState) write16(addr uint16, val uint16) {
-	cs.write(addr, byte(val))
-	cs.write(addr+1, byte(val>>8))
 }

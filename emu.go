@@ -22,8 +22,8 @@ type Input struct {
 	ClearScreenButton bool
 }
 
-func (cs *cpuState) UpdateInput(input Input) {
-	cs.updateInput(input)
+func (emu *emuState) UpdateInput(input Input) {
+	emu.updateInput(input)
 }
 
 // NewEmulator creates an emulation session
@@ -36,25 +36,25 @@ func NewEmulatorWithAutokeyInput(input []byte) Emulator {
 	return newStateWithAutokeyInput(input)
 }
 
-func (cs *cpuState) MakeSnapshot() []byte {
-	return cs.makeSnapshot()
+func (emu *emuState) MakeSnapshot() []byte {
+	return emu.makeSnapshot()
 }
 
-func (cs *cpuState) LoadSnapshot(snapBytes []byte) (Emulator, error) {
-	return cs.loadSnapshot(snapBytes)
+func (emu *emuState) LoadSnapshot(snapBytes []byte) (Emulator, error) {
+	return emu.loadSnapshot(snapBytes)
 }
 
 // Framebuffer returns the current state of the screen
-func (cs *cpuState) Framebuffer() []byte {
-	return cs.framebuffer()
+func (emu *emuState) Framebuffer() []byte {
+	return emu.framebuffer()
 }
 
 // FlipRequested indicates if a draw request is pending
 // and clears it before returning
-func (cs *cpuState) FlipRequested() bool {
-	return cs.flipRequested()
+func (emu *emuState) FlipRequested() bool {
+	return emu.flipRequested()
 }
 
-func (cs *cpuState) Step() {
-	cs.step()
+func (emu *emuState) Step() {
+	emu.step()
 }

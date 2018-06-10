@@ -20,7 +20,7 @@ type snapshot struct {
 	RAM     []byte
 }
 
-func (cs *cpuState) loadSnapshot(snapBytes []byte) (*cpuState, error) {
+func (emu *emuState) loadSnapshot(snapBytes []byte) (*emuState, error) {
 	var err error
 	var reader io.Reader
 	var unpackedBytes []byte
@@ -32,17 +32,17 @@ func (cs *cpuState) loadSnapshot(snapBytes []byte) (*cpuState, error) {
 	} else if err = json.Unmarshal(unpackedBytes, &snap); err != nil {
 		return nil, err
 	} else if snap.Version < currentSnapshotVersion {
-		return cs.convertOldSnapshot(&snap)
+		return emu.convertOldSnapshot(&snap)
 	} else if snap.Version > currentSnapshotVersion {
 		return nil, fmt.Errorf("this version of a1go is too old to open this snapshot")
 	}
 
-	return cs.convertLatestSnapshot(snap.State)
+	return emu.convertLatestSnapshot(snap.State)
 }
 
-func (cs *cpuState) convertLatestSnapshot(jsonBytes json.RawMessage) (*cpuState, error) {
+func (emu *emuState) convertLatestSnapshot(jsonBytes json.RawMessage) (*emuState, error) {
 	var err error
-	var newState cpuState
+	var newState emuState
 	if err = json.Unmarshal(jsonBytes, &newState); err != nil {
 		return nil, err
 	}
@@ -59,10 +59,10 @@ var snapshotConverters = map[int]func([]byte) []byte{
 // },
 }
 
-func (cs *cpuState) convertOldSnapshot(snap *snapshot) (*cpuState, error) {
+func (emu *emuState) convertOldSnapshot(snap *snapshot) (*emuState, error) {
 
 	var err error
-	var newState *cpuState
+	var newState *emuState
 
 	// unfortunately, can't use json, as go is crazy enough to make it so
 	// converting something in and out of json as a map[string]interface{}
@@ -79,24 +79,24 @@ func (cs *cpuState) convertOldSnapshot(snap *snapshot) (*cpuState, error) {
 		stateBytes = converterFn(stateBytes)
 	}
 
-	newState, err = cs.convertLatestSnapshot(stateBytes)
+	newState, err = emu.convertLatestSnapshot(stateBytes)
 	if err != nil {
 		return nil, fmt.Errorf("post-convert unpack err: %v", err)
 	}
 	return newState, nil
 }
 
-func (cs *cpuState) makeSnapshot() []byte {
+func (emu *emuState) makeSnapshot() []byte {
 	var err error
-	var csJSON []byte
+	var emuJSON []byte
 	var snapJSON []byte
-	if csJSON, err = json.Marshal(cs); err != nil {
+	if emuJSON, err = json.Marshal(emu); err != nil {
 		panic(err)
 	}
 	snap := snapshot{
 		Version: currentSnapshotVersion,
 		Info:    infoString,
-		State:   json.RawMessage(csJSON),
+		State:   json.RawMessage(emuJSON),
 	}
 	if snapJSON, err = json.Marshal(&snap); err != nil {
 		panic(err)

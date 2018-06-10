@@ -5,20 +5,16 @@ import (
 	"os"
 )
 
-type cpuState struct {
+type emuState struct {
 	Mem mem
+
+	CPU g6502
 
 	Screen [240 * 240 * 4]byte
 
 	terminal terminal
 
 	autokeyInput []byte
-
-	PC            uint16
-	P, A, X, Y, S byte
-
-	IRQ, BRK, NMI, RESET bool
-	LastStepsP           byte
 
 	LastKeyState     [256]bool
 	NewKeyWasPressed bool
@@ -32,130 +28,32 @@ type cpuState struct {
 
 	DisplayBeenInitted bool
 
-	Steps  uint64
 	Cycles uint64
 }
 
-func (cs *cpuState) flipRequested() bool {
-	result := cs.terminal.flipRequested
-	cs.terminal.flipRequested = false
+func (emu *emuState) flipRequested() bool {
+	result := emu.terminal.flipRequested
+	emu.terminal.flipRequested = false
 	return result
 }
 
-func (cs *cpuState) framebuffer() []byte {
-	return cs.terminal.screen
+func (emu *emuState) framebuffer() []byte {
+	return emu.terminal.screen
 }
 
-func (cs *cpuState) runCycles(cycles uint) {
+func (emu *emuState) runCycles(cycles uint) {
 	for i := uint(0); i < cycles; i++ {
-		cs.Cycles++
+		emu.Cycles++
 
 		// not great timing, probably
-		if cs.KeyDisplayRequested && cs.ReadyToDisplay {
-			cs.KeyDisplayRequested = false
-			cs.terminal.writeChar(rune(cs.NextKeyToDisplay))
+		if emu.KeyDisplayRequested && emu.ReadyToDisplay {
+			emu.KeyDisplayRequested = false
+			emu.terminal.writeChar(rune(emu.NextKeyToDisplay))
 		}
-		if !cs.terminal.flipRequested {
-			cs.ReadyToDisplay = true
-		}
-	}
-}
-
-func (cs *cpuState) debugStatusLine() string {
-	if showMemReads {
-		fmt.Println()
-	}
-	opcode := cs.read(cs.PC)
-	b2, b3 := cs.read(cs.PC+1), cs.read(cs.PC+2)
-	sp := 0x100 + uint16(cs.S)
-	s1, s2, s3 := cs.read(sp), cs.read(sp+1), cs.read(sp+2)
-	return fmt.Sprintf("Steps: %09d ", cs.Steps) +
-		fmt.Sprintf("PC:%04x ", cs.PC) +
-		fmt.Sprintf("*PC[:3]:%02x%02x%02x ", opcode, b2, b3) +
-		fmt.Sprintf("*S[:3]:%02x%02x%02x ", s1, s2, s3) +
-		fmt.Sprintf("opcode:%v ", opcodeNames[opcode]) +
-		fmt.Sprintf("A:%02x ", cs.A) +
-		fmt.Sprintf("X:%02x ", cs.X) +
-		fmt.Sprintf("Y:%02x ", cs.Y) +
-		fmt.Sprintf("P:%02x ", cs.P) +
-		fmt.Sprintf("S:%02x ", cs.S)
-	/*
-		return fmt.Sprintf("%04X  ", cs.PC) +
-			fmt.Sprintf("%02X %02X %02X  ", opcode, b2, b3) +
-			fmt.Sprintf("%v                             ", opcodeNames[opcode]) +
-			fmt.Sprintf("A:%02X ", cs.A) +
-			fmt.Sprintf("X:%02X ", cs.X) +
-			fmt.Sprintf("Y:%02X ", cs.Y) +
-			fmt.Sprintf("P:%02X ", cs.P) +
-			fmt.Sprintf("SP:%02X", cs.S)
-	*/
-}
-
-const (
-	flagNeg         = 0x80
-	flagOverflow    = 0x40
-	flagOnStack     = 0x20
-	flagBrk         = 0x10
-	flagDecimal     = 0x08
-	flagIrqDisabled = 0x04
-	flagZero        = 0x02
-	flagCarry       = 0x01
-)
-
-func (cs *cpuState) handleInterrupts() {
-	if cs.RESET {
-		cs.RESET = false
-		cs.PC = cs.read16(0xfffc)
-		cs.S -= 3
-		cs.P |= flagIrqDisabled
-		cs.DisplayBeenInitted = false
-		cs.terminal.clearScreen()
-	} else if cs.BRK {
-		cs.BRK = false
-		cs.push16(cs.PC + 1)
-		cs.push(cs.P | flagBrk | flagOnStack)
-		cs.P |= flagIrqDisabled
-		cs.PC = cs.read16(0xfffe)
-	} else if cs.NMI {
-		cs.NMI = false
-		cs.push16(cs.PC)
-		cs.push(cs.P | flagOnStack)
-		cs.P |= flagIrqDisabled
-		cs.PC = cs.read16(0xfffa)
-	} else if cs.IRQ {
-		cs.IRQ = false
-		if cs.interruptsEnabled() {
-			cs.push16(cs.PC)
-			cs.push(cs.P | flagOnStack)
-			cs.P |= flagIrqDisabled
-			cs.PC = cs.read16(0xfffe)
+		if !emu.terminal.flipRequested {
+			emu.ReadyToDisplay = true
 		}
 	}
-	cs.LastStepsP = cs.P
-}
-
-func (cs *cpuState) push16(val uint16) {
-	cs.push(byte(val >> 8))
-	cs.push(byte(val))
-}
-func (cs *cpuState) push(val byte) {
-	cs.write(0x100+uint16(cs.S), val)
-	cs.S--
-}
-
-func (cs *cpuState) pop16() uint16 {
-	val := uint16(cs.pop())
-	val |= uint16(cs.pop()) << 8
-	return val
-}
-func (cs *cpuState) pop() byte {
-	cs.S++
-	result := cs.read(0x100 + uint16(cs.S))
-	return result
-}
-
-func (cs *cpuState) interruptsEnabled() bool {
-	return cs.LastStepsP&flagIrqDisabled == 0
 }
 
 const (
@@ -163,11 +61,7 @@ const (
 	showMemWrites = false
 )
 
-func (cs *cpuState) step() {
-
-	cs.handleInterrupts()
-
-	cs.Steps++
+func (emu *emuState) step() {
 
 	/*
 		// single step w/ debug printout
@@ -177,19 +71,22 @@ func (cs *cpuState) step() {
 				return
 			}
 			cs.DebugKeyPressed = false
-			fmt.Println(cs.debugStatusLine())
+			if showMemReads {
+				fmt.Println()
+			}
+			fmt.Println(emu.CPU.debugStatusLine())
 		}
 	*/
 
-	cs.stepOpcode()
+	emu.CPU.step()
 }
 
-func (cs *cpuState) updateInput(input Input) {
+func (emu *emuState) updateInput(input Input) {
 
-	if len(cs.autokeyInput) > 0 {
-		if !cs.NewKeyWasPressed {
-			input.Keys[cs.autokeyInput[0]] = true
-			cs.autokeyInput = cs.autokeyInput[1:]
+	if len(emu.autokeyInput) > 0 {
+		if !emu.NewKeyWasPressed {
+			input.Keys[emu.autokeyInput[0]] = true
+			emu.autokeyInput = emu.autokeyInput[1:]
 		}
 	}
 
@@ -225,44 +122,55 @@ func (cs *cpuState) updateInput(input Input) {
 			continue
 		}
 
-		if !cs.LastKeyState[i] && down {
-			cs.NewKeyInput = byte(i)
-			cs.NewKeyWasPressed = true
-			cs.DebugKeyPressed = true
+		if !emu.LastKeyState[i] && down {
+			emu.NewKeyInput = byte(i)
+			emu.NewKeyWasPressed = true
+			emu.DebugKeyPressed = true
 		}
-		cs.LastKeyState[i] = down
+		emu.LastKeyState[i] = down
 	}
 
 	if input.ResetButton {
-		cs.RESET = true
+		emu.reset()
 	}
 	if input.ClearScreenButton {
 		// looking at real apple1 demos, I think
 		// this is the real behavior...
-		cs.terminal.newline()
+		emu.terminal.newline()
 	}
 }
 
-func newStateWithAutokeyInput(input []byte) *cpuState {
-	cs := newState()
-	cs.autokeyInput = input
-	return cs
+func (emu *emuState) reset() {
+	emu.DisplayBeenInitted = false
+	emu.terminal.clearScreen()
+	emu.CPU.RESET = true
 }
 
-func newState() *cpuState {
-	cs := cpuState{
+func newStateWithAutokeyInput(input []byte) *emuState {
+	emu := newState()
+	emu.autokeyInput = input
+	return emu
+}
+
+func newState() *emuState {
+	emu := emuState{
 		Mem:            mem{},
-		RESET:          true,
 		ReadyToDisplay: true,
 	}
-	cs.terminal = terminal{
+	emu.CPU = g6502{
+		RESET:     true,
+		runCycles: emu.runCycles,
+		write:     emu.write,
+		read:      emu.read,
+	}
+	emu.terminal = terminal{
 		w:      240,
 		h:      192,
-		screen: cs.Screen[:],
+		screen: emu.Screen[:],
 		font:   a1Font5x7,
 	}
 
-	return &cs
+	return &emu
 }
 
 func emuErr(args ...interface{}) {

@@ -51,8 +51,8 @@ func (d decArithTest) String() string {
 	)
 }
 
-func (d decArithTest) runTest(t *testing.T, fnToTest func(cs *cpuState, val byte) byte) {
-	cs := cpuState{
+func (d decArithTest) runTest(t *testing.T, fnToTest func(cs *g6502, val byte) byte) {
+	cs := g6502{
 		P: d.regP | flagDecimal,
 		A: d.regA,
 	}
@@ -87,7 +87,7 @@ func TestADCDecimalMode(t *testing.T) {
 			entry := test // make local copy
 			//t.Parallel()
 
-			entry.runTest(t, func(cs *cpuState, val byte) byte {
+			entry.runTest(t, func(cs *g6502, val byte) byte {
 				return cs.adcAndSetFlags(val)
 			})
 		})
@@ -112,7 +112,7 @@ func TestSBCDecimalMode(t *testing.T) {
 			entry := test // make local copy
 			//t.Parallel()
 
-			entry.runTest(t, func(cs *cpuState, val byte) byte {
+			entry.runTest(t, func(cs *g6502, val byte) byte {
 				return cs.sbcAndSetFlags(val)
 			})
 		})
