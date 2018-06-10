@@ -1,5 +1,7 @@
 package a1go
 
+import "fmt"
+
 const (
 	flagNeg         = 0x80
 	flagOverflow    = 0x40

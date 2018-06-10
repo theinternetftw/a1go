@@ -32,7 +32,7 @@ func fmtFlags(flags byte) string {
 	return fmt.Sprintf("0x%02x(%s)", flags, out)
 }
 
-type decArithTest struct {
+type arithTest struct {
 	regA       byte
 	val        byte
 	regP       byte
@@ -40,35 +40,39 @@ type decArithTest struct {
 	resultRegP byte
 }
 
-func (d decArithTest) String() string {
+func (a arithTest) String() string {
 	return fmt.Sprintf(
 		"0x%02x+0x%02x,C=%v==0x%02x,%s",
-		d.regA,
-		d.val,
-		d.regP&flagCarry == flagCarry,
-		d.result,
-		fmtFlags(d.resultRegP),
+		a.regA,
+		a.val,
+		a.regP&flagCarry == flagCarry,
+		a.result,
+		fmtFlags(a.resultRegP),
 	)
 }
 
-func (d decArithTest) runTest(t *testing.T, fnToTest func(cs *g6502, val byte) byte) {
-	cs := g6502{
-		P: d.regP | flagDecimal,
-		A: d.regA,
-	}
-	result := fnToTest(&cs, d.val)
-	if result != d.result {
-		t.Errorf("got result val of 0x%02x, expected 0x%02x", result, d.result)
-	}
-	expectedRegP := d.resultRegP | flagDecimal
-	if cs.P != expectedRegP {
-		t.Errorf("got result regP of %s, expected %s", fmtFlags(cs.P), fmtFlags(expectedRegP))
-	}
+func (a arithTest) runTest(t *testing.T, fnToTest func(cs *g6502, val byte) byte) {
+	name := fmt.Sprintf("%v", a)
+	t.Run(name, func(t *testing.T) {
+		//t.Parallel()
+
+		cs := g6502{
+			P: a.regP,
+			A: a.regA,
+		}
+		result := fnToTest(&cs, a.val)
+		if result != a.result {
+			t.Errorf("got result val of 0x%02x, expected 0x%02x", result, a.result)
+		}
+		if cs.P != a.resultRegP {
+			t.Errorf("got result regP of %s, expected %s", fmtFlags(cs.P), fmtFlags(a.resultRegP))
+		}
+	})
 }
 
 func TestADCDecimalMode(t *testing.T) {
 	const c = flagCarry
-	adcTests := []decArithTest{
+	adcTests := []arithTest{
 		{0x00, 0x00, 0, 0x00, flagZero},
 		{0x79, 0x00, c, 0x80, flagNeg | flagOverflow},
 		{0x24, 0x56, 0, 0x80, flagNeg | flagOverflow},
@@ -82,21 +86,18 @@ func TestADCDecimalMode(t *testing.T) {
 	}
 
 	for _, test := range adcTests {
-		name := fmt.Sprintf("%v", test)
-		t.Run(name, func(t *testing.T) {
-			entry := test // make local copy
-			//t.Parallel()
+		test.regP |= flagDecimal
+		test.resultRegP |= flagDecimal
 
-			entry.runTest(t, func(cs *g6502, val byte) byte {
-				return cs.adcAndSetFlags(val)
-			})
+		test.runTest(t, func(cs *g6502, val byte) byte {
+			return cs.adcAndSetFlags(val)
 		})
 	}
 }
 
 func TestSBCDecimalMode(t *testing.T) {
 	const c = flagCarry // NOTE: remember carry is inverted for sbc
-	sbcTests := []decArithTest{
+	sbcTests := []arithTest{
 		{0x00, 0x00, 0, 0x99, flagNeg},
 		{0x00, 0x00, c, 0x00, flagZero | flagCarry},
 		{0x00, 0x01, c, 0x99, flagNeg},
@@ -107,14 +108,11 @@ func TestSBCDecimalMode(t *testing.T) {
 	}
 
 	for _, test := range sbcTests {
-		name := fmt.Sprintf("%v", test)
-		t.Run(name, func(t *testing.T) {
-			entry := test // make local copy
-			//t.Parallel()
+		test.regP |= flagDecimal
+		test.resultRegP |= flagDecimal
 
-			entry.runTest(t, func(cs *g6502, val byte) byte {
-				return cs.sbcAndSetFlags(val)
-			})
+		test.runTest(t, func(cs *g6502, val byte) byte {
+			return cs.sbcAndSetFlags(val)
 		})
 	}
 }
