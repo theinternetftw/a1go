@@ -4,6 +4,8 @@ package a1go
 type Emulator interface {
 	Step()
 
+	LoadBinaryToMem(addr uint16, bin []byte) error
+
 	MakeSnapshot() []byte
 	LoadSnapshot([]byte) (Emulator, error)
 
@@ -34,6 +36,10 @@ func NewEmulator() Emulator {
 // NewEmulatorWithAutokeyInput creates an emulation session with input to be autokeyed in from the start
 func NewEmulatorWithAutokeyInput(input []byte) Emulator {
 	return newStateWithAutokeyInput(input)
+}
+
+func (emu *emuState) LoadBinaryToMem(addr uint16, bin []byte) error {
+	return emu.loadBinaryToMem(addr, bin)
 }
 
 func (emu *emuState) MakeSnapshot() []byte {

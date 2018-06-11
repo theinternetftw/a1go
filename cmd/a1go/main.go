@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"time"
 )
 
@@ -31,6 +32,24 @@ func main() {
 		emu = a1go.NewEmulator()
 	}
 
+	execPath, err := os.Executable()
+	if err == nil {
+		execDir := path.Dir(execPath)
+		basicPath := path.Join(execDir, "roms", "basic.bin")
+		basicBytes, err := ioutil.ReadFile(basicPath)
+		if err == nil {
+			err := emu.LoadBinaryToMem(0xe000, basicBytes)
+			if err != nil {
+				dieIf(fmt.Errorf("err when loading basic.bin: %v", err))
+			} else {
+				fmt.Println("loaded basic!")
+			}
+		} else {
+			fmt.Println("could not auto-load basic:", err)
+		}
+	} else {
+		fmt.Println("could not find executable path:", err)
+	}
 
 	screenW := 240
 	screenH := 192

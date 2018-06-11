@@ -140,6 +140,18 @@ func (emu *emuState) updateInput(input Input) {
 	}
 }
 
+func (emu *emuState) loadBinaryToMem(addr uint16, bin []byte) error {
+	fmt.Println("len", len(bin))
+	if len(bin)+int(addr) > 0x10000 {
+		return fmt.Errorf("binary len %v too big to load at %v", len(bin), addr)
+	}
+	for i, b := range bin {
+		i16 := uint16(i)
+		emu.write(addr+i16, b)
+	}
+	return nil
+}
+
 func (emu *emuState) reset() {
 	emu.DisplayBeenInitted = false
 	emu.terminal.clearScreen()
