@@ -2,12 +2,12 @@ package a1go
 
 import "fmt"
 
-const ramBank1Size = 0xD000
+const ramBank1Size = 0xc000
 const ramBank2Size = 0x1000
 
 type mem struct {
 	RAMBank1 [ramBank1Size]byte
-	RAMBank2 [ramBank1Size]byte
+	RAMBank2 [ramBank2Size]byte
 }
 
 var monitorROM = [256]byte{
@@ -59,9 +59,11 @@ func (emu *emuState) read(addr uint16) byte {
 	case addr == 0xd012:
 		val = boolBit(!emu.ReadyToDisplay, 7) | emu.NextKeyToDisplay
 
-	case addr >= 0xE000 && addr < 0xF000:
-		val = emu.Mem.RAMBank2[addr-0xE000]
+	case addr >= 0xe000 && addr < 0xf000:
+		val = emu.Mem.RAMBank2[addr-0xe000]
 
+	case addr >= 0xf000 && addr < 0xff00:
+		val = 0xff // unused ROM
 	case addr >= 0xff00:
 		val = monitorROM[addr-0xff00]
 	default:
@@ -94,10 +96,10 @@ func (emu *emuState) write(addr uint16, val byte) {
 	case addr == 0xd013:
 		// ctrl for PIA setup after RESET, ignored here
 
-	case addr >= 0xE000 && addr < 0xF000:
-		emu.Mem.RAMBank2[addr-0xE000] = val
+	case addr >= 0xe000 && addr < 0xf000:
+		emu.Mem.RAMBank2[addr-0xe000] = val
 
-	case addr >= 0xff00:
+	case addr >= 0xf000:
 		// nop, this is ROM
 
 	default:
