@@ -16,7 +16,6 @@ type Emulator interface {
 }
 
 // Input covers all outside info sent to the Emulator
-// TODO: add dt?
 type Input struct {
 	// Keys is a bool array of keydown state
 	Keys              [256]bool
