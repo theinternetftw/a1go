@@ -50,13 +50,13 @@ func (emu *emuState) convertLatestSnapshot(jsonBytes json.RawMessage) (*emuState
 }
 
 var snapshotConverters = map[int]func([]byte) []byte{
-// If new field can be zero, no need for converter.
-// Converters should look like this (including comment):
-// added 2017-XX-XX
-// 1: func(stateBytes []byte) []byte {
-// 	stateBytes = stateBytes[:len(stateBytes)-1]
-// 	return append(stateBytes, []byte(",\"ExampleNewField\":0}")...)
-// },
+	// If new field can be zero, no need for converter.
+	// Converters should look like this (including comment):
+	// added 2017-XX-XX
+	// 1: func(stateBytes []byte) []byte {
+	// 	stateBytes = stateBytes[:len(stateBytes)-1]
+	// 	return append(stateBytes, []byte(",\"ExampleNewField\":0}")...)
+	// },
 }
 
 func (emu *emuState) convertOldSnapshot(snap *snapshot) (*emuState, error) {

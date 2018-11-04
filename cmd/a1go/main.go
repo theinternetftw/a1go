@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/theinternetftw/a1go"
 	"github.com/theinternetftw/a1go/profiling"
-	"github.com/theinternetftw/a1go/platform"
+	"github.com/theinternetftw/glimmer"
 
 	"golang.org/x/mobile/event/key"
 
@@ -53,12 +53,12 @@ func main() {
 
 	screenW := 240
 	screenH := 192
-	platform.InitDisplayLoop(screenW*2+40, screenH*2+40, screenW, screenH, func(sharedState *platform.WindowState) {
+	glimmer.InitDisplayLoop("a1go", screenW*2+40, screenH*2+40, screenW, screenH, func(sharedState *glimmer.WindowState) {
 		startEmu(sharedState, emu)
 	})
 }
 
-func startEmu(window *platform.WindowState, emu a1go.Emulator) {
+func startEmu(window *glimmer.WindowState, emu a1go.Emulator) {
 
 	// FIXME: settings are for debug right now
 	lastVBlankTime := time.Now()
