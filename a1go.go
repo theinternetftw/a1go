@@ -1,6 +1,8 @@
 package a1go
 
 import (
+	"github.com/theinternetftw/cpugo/virt6502"
+
 	"fmt"
 	"os"
 )
@@ -8,7 +10,7 @@ import (
 type emuState struct {
 	Mem mem
 
-	CPU g6502
+	CPU virt6502.Virt6502
 
 	Screen [240 * 240 * 4]byte
 
@@ -78,7 +80,7 @@ func (emu *emuState) step() {
 		}
 	*/
 
-	emu.CPU.step()
+	emu.CPU.Step()
 }
 
 func (emu *emuState) updateInput(input Input) {
@@ -169,11 +171,12 @@ func newState() *emuState {
 		Mem:            mem{},
 		ReadyToDisplay: true,
 	}
-	emu.CPU = g6502{
+	emu.CPU = virt6502.Virt6502{
 		RESET:     true,
-		runCycles: emu.runCycles,
-		write:     emu.write,
-		read:      emu.read,
+		RunCycles: emu.runCycles,
+		Write:     emu.write,
+		Read:      emu.read,
+		Err:       func(e error) { emuErr(e) },
 	}
 	emu.terminal = terminal{
 		w:      240,
