@@ -5,8 +5,6 @@ import (
 	"github.com/theinternetftw/a1go/profiling"
 	"github.com/theinternetftw/glimmer"
 
-	"golang.org/x/mobile/event/key"
-
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -75,13 +73,13 @@ func startEmu(window *glimmer.WindowState, emu a1go.Emulator) {
 		window.Mutex.Lock()
 		{
 			window.CopyKeyCharArray(newInput.Keys[:])
-			if window.CodeIsDown(key.CodeF1) {
+			if window.CodeIsDown(glimmer.CodeF1) {
 				newInput.ResetButton = true
 			}
-			if window.CodeIsDown(key.CodeF2) {
+			if window.CodeIsDown(glimmer.CodeF2) {
 				newInput.ClearScreenButton = true
 			}
-			if window.CodeIsDown(key.CodeF11) {
+			if window.CodeIsDown(glimmer.CodeF11) {
 				hyperMode = true
 			}
 			/*
