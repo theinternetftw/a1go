@@ -73,6 +73,7 @@ func startEmu(window *glimmer.WindowState, emu a1go.Emulator) {
 		window.Mutex.Lock()
 		{
 			window.CopyKeyCharArray(newInput.Keys[:])
+			newInput.Keys['\r'] = window.CodeIsDown(glimmer.CodeReturnEnter)
 			if window.CodeIsDown(glimmer.CodeF1) {
 				newInput.ResetButton = true
 			}
