@@ -30,8 +30,11 @@ type emuState struct {
 
 	DisplayBeenInitted bool
 
-	Cycles uint64
+	Cycles       uint64
+	FrameCounter uint64
 }
+
+const clocksPerFrame = 14318100 / 14 / 60
 
 func (emu *emuState) flipRequested() bool {
 	result := emu.Terminal.flipRequested
@@ -44,17 +47,22 @@ func (emu *emuState) framebuffer() []byte {
 }
 
 func (emu *emuState) runCycles(cycles uint) {
-	for i := uint(0); i < cycles; i++ {
-		emu.Cycles++
 
-		// not great timing, probably
-		if emu.KeyDisplayRequested && emu.ReadyToDisplay {
-			emu.KeyDisplayRequested = false
-			emu.Terminal.writeChar(rune(emu.NextKeyToDisplay))
-		}
-		if !emu.Terminal.flipRequested {
-			emu.ReadyToDisplay = true
-		}
+	emu.Cycles += uint64(cycles)
+
+	// not great timing, probably
+	if emu.KeyDisplayRequested && emu.ReadyToDisplay {
+		emu.KeyDisplayRequested = false
+		emu.Terminal.writeChar(rune(emu.NextKeyToDisplay))
+	}
+	if !emu.Terminal.flipRequested {
+		emu.ReadyToDisplay = true
+	}
+
+	emu.FrameCounter += uint64(cycles)
+	if emu.FrameCounter >= clocksPerFrame {
+		emu.FrameCounter = 0
+		emu.Terminal.flipRequested = true
 	}
 }
 
