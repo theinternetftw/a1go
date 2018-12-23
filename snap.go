@@ -17,7 +17,6 @@ type snapshot struct {
 	Version int
 	Info    string
 	State   json.RawMessage
-	RAM     []byte
 }
 
 func (emu *emuState) loadSnapshot(snapBytes []byte) (*emuState, error) {
@@ -46,6 +45,14 @@ func (emu *emuState) convertLatestSnapshot(jsonBytes json.RawMessage) (*emuState
 	if err = json.Unmarshal(jsonBytes, &newState); err != nil {
 		return nil, err
 	}
+
+	unpackTerminalFromSnap(&newState)
+
+	newState.CPU.RunCycles = newState.runCycles
+	newState.CPU.Write = newState.write
+	newState.CPU.Read = newState.read
+	newState.CPU.Err = func(e error) { emuErr(e) }
+
 	return &newState, nil
 }
 

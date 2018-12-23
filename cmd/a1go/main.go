@@ -20,8 +20,9 @@ func main() {
 
 	var emu a1go.Emulator
 
+	romFilename := ""
 	if len(os.Args) == 2 {
-		romFilename := os.Args[1]
+		romFilename = os.Args[1]
 		inputBytes, err := ioutil.ReadFile(romFilename)
 		dieIf(err)
 
@@ -52,74 +53,100 @@ func main() {
 	screenW := 240
 	screenH := 192
 	glimmer.InitDisplayLoop("a1go", screenW*2+40, screenH*2+40, screenW, screenH, func(sharedState *glimmer.WindowState) {
-		startEmu(sharedState, emu)
+		startEmu(sharedState, emu, romFilename)
 	})
 }
 
-func startEmu(window *glimmer.WindowState, emu a1go.Emulator) {
+func startEmu(window *glimmer.WindowState, emu a1go.Emulator, romFilename string) {
 
 	// FIXME: settings are for debug right now
 	lastVBlankTime := time.Now()
 
-	snapshotPrefix := "a1go" + ".snapshot"
+	if romFilename == "" {
+		romFilename = "algo"
+	}
+	snapshotPrefix := romFilename + ".snapshot"
+	snapInProgress := false
+
+	numDown := 'x'
+	lastNumDown := 'x'
+	snapshotMode := 'x'
 
 	for {
 		newInput := a1go.Input {}
-		snapshotMode := 'x'
-		numDown := 'x'
 
 		hyperMode := false
 
 		window.Mutex.Lock()
 		{
-			window.CopyKeyCharArray(newInput.Keys[:])
-			newInput.Keys['\r'] = window.CodeIsDown(glimmer.CodeReturnEnter)
-			if window.CodeIsDown(glimmer.CodeF1) {
+
+			switch {
+			case window.CodeIsDown(glimmer.CodeF1):
 				newInput.ResetButton = true
-			}
-			if window.CodeIsDown(glimmer.CodeF2) {
+			case window.CodeIsDown(glimmer.CodeF2):
 				newInput.ClearScreenButton = true
-			}
-			if window.CodeIsDown(glimmer.CodeF11) {
+			case window.CodeIsDown(glimmer.CodeF11):
 				hyperMode = true
 			}
-			/*
+
+			if window.CodeIsDown(glimmer.CodeF4) {
+				snapshotMode = 'm'
+			} else if window.CodeIsDown(glimmer.CodeF9) {
+				snapshotMode = 'l'
+			} else {
+				snapInProgress = false
+			}
+
+			numDown = 'x'
 			for r := '0'; r <= '9'; r++ {
 				if window.CharIsDown(r) {
 					numDown = r
 					break
 				}
 			}
-			if window.CharIsDown('m') {
-				snapshotMode = 'm'
-			} else if window.CharIsDown('l') {
-				snapshotMode = 'l'
+			if lastNumDown != 'x' {
+				if !window.CharIsDown(lastNumDown) {
+					lastNumDown = 'x'
+				}
 			}
-			*/
+
+			if snapshotMode == 'x' && lastNumDown == 'x' {
+				window.CopyKeyCharArray(newInput.Keys[:])
+				newInput.Keys['\r'] = window.CodeIsDown(glimmer.CodeReturnEnter)
+			}
 		}
 		window.Mutex.Unlock()
 
 		if numDown > '0' && numDown <= '9' {
 			snapFilename := snapshotPrefix+string(numDown)
 			if snapshotMode == 'm' {
-				snapshotMode = 'x'
-				snapshot := emu.MakeSnapshot()
-				if len(snapshot) > 0 {
-					ioutil.WriteFile(snapFilename, snapshot, os.FileMode(0644))
+				if !snapInProgress {
+					snapInProgress = true
+					lastNumDown = numDown
+					snapshotMode = 'x'
+					snapshot := emu.MakeSnapshot()
+					if len(snapshot) > 0 {
+						ioutil.WriteFile(snapFilename, snapshot, os.FileMode(0644))
+					}
+					fmt.Println("writing snap to", snapFilename)
 				}
 			} else if snapshotMode == 'l' {
-				snapshotMode = 'x'
-				snapBytes, err := ioutil.ReadFile(snapFilename)
-				if err != nil {
-					fmt.Println("failed to load snapshot:", err)
-					continue
+				if !snapInProgress {
+					snapInProgress = true
+					lastNumDown = numDown
+					snapshotMode = 'x'
+					snapBytes, err := ioutil.ReadFile(snapFilename)
+					if err != nil {
+						fmt.Println("failed to load snapshot:", err)
+						continue
+					}
+					newEmu, err := emu.LoadSnapshot(snapBytes)
+					if err != nil {
+						fmt.Println("failed to load snapshot:", err)
+						continue
+					}
+					emu = newEmu
 				}
-				newEmu, err := emu.LoadSnapshot(snapBytes)
-				if err != nil {
-					fmt.Println("failed to load snapshot:", err)
-					continue
-				}
-				emu = newEmu
 			}
 		}
 

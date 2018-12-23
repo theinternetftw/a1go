@@ -14,7 +14,7 @@ type emuState struct {
 
 	Screen [240 * 240 * 4]byte
 
-	terminal terminal
+	Terminal terminal
 
 	autokeyInput []byte
 
@@ -34,13 +34,13 @@ type emuState struct {
 }
 
 func (emu *emuState) flipRequested() bool {
-	result := emu.terminal.flipRequested
-	emu.terminal.flipRequested = false
+	result := emu.Terminal.flipRequested
+	emu.Terminal.flipRequested = false
 	return result
 }
 
 func (emu *emuState) framebuffer() []byte {
-	return emu.terminal.screen
+	return emu.Terminal.screen
 }
 
 func (emu *emuState) runCycles(cycles uint) {
@@ -50,9 +50,9 @@ func (emu *emuState) runCycles(cycles uint) {
 		// not great timing, probably
 		if emu.KeyDisplayRequested && emu.ReadyToDisplay {
 			emu.KeyDisplayRequested = false
-			emu.terminal.writeChar(rune(emu.NextKeyToDisplay))
+			emu.Terminal.writeChar(rune(emu.NextKeyToDisplay))
 		}
-		if !emu.terminal.flipRequested {
+		if !emu.Terminal.flipRequested {
 			emu.ReadyToDisplay = true
 		}
 	}
@@ -138,7 +138,7 @@ func (emu *emuState) updateInput(input Input) {
 	if input.ClearScreenButton {
 		// looking at real apple1 demos, I think
 		// this is the real behavior...
-		emu.terminal.newline()
+		emu.Terminal.newline()
 	}
 }
 
@@ -156,7 +156,7 @@ func (emu *emuState) loadBinaryToMem(addr uint16, bin []byte) error {
 
 func (emu *emuState) reset() {
 	emu.DisplayBeenInitted = false
-	emu.terminal.clearScreen()
+	emu.Terminal.clearScreen()
 	emu.CPU.RESET = true
 }
 
@@ -164,6 +164,20 @@ func newStateWithAutokeyInput(input []byte) *emuState {
 	emu := newState()
 	emu.autokeyInput = input
 	return emu
+}
+
+func makeTerminal(emu *emuState) terminal {
+	return terminal{
+		W:      240,
+		H:      192,
+		screen: emu.Screen[:],
+		font:   a1Font5x7,
+	}
+}
+func unpackTerminalFromSnap(emu *emuState) {
+	emu.Terminal.flipRequested = true
+	emu.Terminal.screen = emu.Screen[:]
+	emu.Terminal.font = a1Font5x7
 }
 
 func newState() *emuState {
@@ -178,12 +192,7 @@ func newState() *emuState {
 		Read:      emu.read,
 		Err:       func(e error) { emuErr(e) },
 	}
-	emu.terminal = terminal{
-		w:      240,
-		h:      192,
-		screen: emu.Screen[:],
-		font:   a1Font5x7,
-	}
+	emu.Terminal = makeTerminal(&emu)
 
 	return &emu
 }

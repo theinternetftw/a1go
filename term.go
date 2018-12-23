@@ -1,8 +1,8 @@
 package a1go
 
 type terminal struct {
-	x, y          int
-	w, h          int
+	X, Y          int
+	W, H          int
 	screen        []byte // w*h*4
 	font          font
 	flipRequested bool
@@ -14,12 +14,12 @@ type font struct {
 }
 
 func (t *terminal) newline() {
-	t.x = 0
-	t.y += t.font.h + 1
-	if t.y+t.font.h >= t.h {
-		t.y -= t.font.h + 1
-		copy(t.screen, t.screen[t.w*(t.font.h+1)*4:])
-		for i := t.w * t.y * 4; i < len(t.screen); i++ {
+	t.X = 0
+	t.Y += t.font.h + 1
+	if t.Y+t.font.h >= t.H {
+		t.Y -= t.font.h + 1
+		copy(t.screen, t.screen[t.W*(t.font.h+1)*4:])
+		for i := t.W * t.Y * 4; i < len(t.screen); i++ {
 			t.screen[i] = 0
 		}
 	}
@@ -27,23 +27,23 @@ func (t *terminal) newline() {
 }
 
 func (t *terminal) advanceChar() {
-	t.x += t.font.w + 1
-	if t.x >= t.w {
+	t.X += t.font.w + 1
+	if t.X >= t.W {
 		t.newline()
 	}
 }
 
 func (t *terminal) setPos(x, y int) {
-	t.x = x * t.font.w
-	t.y = y * t.font.h
+	t.X = x * t.font.w
+	t.Y = y * t.font.h
 }
 
 func (t *terminal) clearScreen() {
 	for i := 0; i < len(t.screen); i++ {
 		t.screen[i] = 0
 	}
-	t.x = 0
-	t.y = 0
+	t.X = 0
+	t.Y = 0
 	t.flipRequested = true
 }
 
@@ -78,7 +78,7 @@ func (t *terminal) writeChar(char rune) {
 				fontChr = t.font.glyphs['?']
 			}
 			for i := 0; i < t.font.h; i++ {
-				lineStartInChars := (t.y+i)*t.w + t.x
+				lineStartInChars := (t.Y+i)*t.W + t.X
 				line := t.screen[lineStartInChars*4:]
 				chrLine := fontChr[i*t.font.w : (i+1)*t.font.w]
 				for j := 0; j < t.font.w; j++ {
