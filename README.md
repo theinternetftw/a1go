@@ -7,7 +7,7 @@ My other emulators:
 [segmago](https://github.com/theinternetftw/segmago).
 
 #### Features:
- * Only the 6502 monitor is included! It's 1976! $666.66 is a lot of money! You didn't spring for Woz's BASIC!
+ * Only the 6502 monitor is included! It's 1976, $666.66 is a lot of money! You didn't spring for Woz's BASIC!
  * If you have a text file in monitor syntax, put that file in as an argument to have it auto-typed in!
  * Hyperspeed! (hit F11 to speed things up)
  * Quicksave/Quickload, too!
