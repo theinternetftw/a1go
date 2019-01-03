@@ -17,7 +17,8 @@ That last bit relies on [glimmer](https://github.com/theinternetftw/glimmer). Te
 
 #### Compiling
 
-If you have go version >= 1.11, `go build ./cmd/a1go` should be enough. The interested can also see my build script `b` for profiling and such.
+ * If you have go version >= 1.11, `go build ./cmd/a1go` should be enough.
+ * The interested can also see my build script `b` for profiling and such.
 
 #### Important Notes:
 
