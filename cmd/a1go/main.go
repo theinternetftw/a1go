@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"time"
 )
 
 func main() {
@@ -59,8 +58,7 @@ func main() {
 
 func startEmu(window *glimmer.WindowState, emu a1go.Emulator, romFilename string) {
 
-	// FIXME: settings are for debug right now
-	lastVBlankTime := time.Now()
+	frameTimer := glimmer.MakeFrameTimer(1.0 / 60.0)
 
 	if romFilename == "" {
 		romFilename = "algo"
@@ -77,7 +75,7 @@ func startEmu(window *glimmer.WindowState, emu a1go.Emulator, romFilename string
 
 		hyperMode := false
 
-		window.Mutex.Lock()
+		window.InputMutex.Lock()
 		{
 
 			switch {
@@ -115,7 +113,7 @@ func startEmu(window *glimmer.WindowState, emu a1go.Emulator, romFilename string
 				newInput.Keys['\r'] = window.CodeIsDown(glimmer.CodeReturnEnter)
 			}
 		}
-		window.Mutex.Unlock()
+		window.InputMutex.Unlock()
 
 		if numDown > '0' && numDown <= '9' {
 			snapFilename := snapshotPrefix+string(numDown)
@@ -154,17 +152,14 @@ func startEmu(window *glimmer.WindowState, emu a1go.Emulator, romFilename string
 		emu.Step()
 
 		if emu.FlipRequested() {
-			window.Mutex.Lock()
+			window.RenderMutex.Lock()
 			copy(window.Pix, emu.Framebuffer())
 			window.RequestDraw()
-			window.Mutex.Unlock()
+			window.RenderMutex.Unlock()
 
-			spent := time.Now().Sub(lastVBlankTime)
-			toWait := 17*time.Millisecond - spent
-			if !hyperMode && toWait > time.Duration(0) {
-				<-time.NewTimer(toWait).C
+			if !hyperMode {
+				frameTimer.WaitForFrametime()
 			}
-			lastVBlankTime = time.Now()
 		}
 	}
 }
