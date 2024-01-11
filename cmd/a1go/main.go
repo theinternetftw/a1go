@@ -71,7 +71,7 @@ func startEmu(window *glimmer.WindowState, emu a1go.Emulator, romFilename string
 	snapshotMode := 'x'
 
 	for {
-		newInput := a1go.Input {}
+		newInput := a1go.Input{}
 
 		hyperMode := false
 
@@ -116,7 +116,7 @@ func startEmu(window *glimmer.WindowState, emu a1go.Emulator, romFilename string
 		window.InputMutex.Unlock()
 
 		if numDown > '0' && numDown <= '9' {
-			snapFilename := snapshotPrefix+string(numDown)
+			snapFilename := snapshotPrefix + string(numDown)
 			if snapshotMode == 'm' {
 				if !snapInProgress {
 					snapInProgress = true
