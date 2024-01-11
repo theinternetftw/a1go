@@ -13,12 +13,16 @@ My other emulators:
  * Quicksave/Quickload, too!
  * Graphical cross-platform support!
 
-That last bit relies on [glimmer](https://github.com/theinternetftw/glimmer). Tested on windows 10 and ubuntu 18.10.
+#### Dependencies:
+
+ * You can compile on windows with no C dependencies.
+ * Other platforms should do whatever the [ebiten](https://github.com/hajimehoshi/ebiten) page says, which is what's currently under the hood.
 
 #### Compiling
 
- * If you have go version >= 1.11, `go build ./cmd/a1go` should be enough.
+ * If you have go version >= 1.18, `go build ./cmd/a1go` should be enough.
  * The interested can also see my build script `b` for profiling and such.
+ * Non-windows users will need ebiten's dependencies.
 
 #### Important Notes:
 

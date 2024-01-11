@@ -51,14 +51,21 @@ func main() {
 
 	screenW := 240
 	screenH := 192
-	glimmer.InitDisplayLoop("a1go", screenW*2+40, screenH*2+40, screenW, screenH, func(sharedState *glimmer.WindowState) {
-		startEmu(sharedState, emu, romFilename)
+	glimmer.InitDisplayLoop(glimmer.InitDisplayLoopOptions{
+		WindowTitle:  "a1go",
+		WindowWidth:  screenW*2 + 40,
+		WindowHeight: screenH*2 + 40,
+		RenderWidth:  screenW,
+		RenderHeight: screenH,
+		InitCallback: func(sharedState *glimmer.WindowState) {
+			startEmu(sharedState, emu, romFilename)
+		},
 	})
 }
 
 func startEmu(window *glimmer.WindowState, emu a1go.Emulator, romFilename string) {
 
-	frameTimer := glimmer.MakeFrameTimer(1.0 / 60.0)
+	frameTimer := glimmer.MakeFrameTimer()
 
 	if romFilename == "" {
 		romFilename = "algo"
@@ -79,17 +86,17 @@ func startEmu(window *glimmer.WindowState, emu a1go.Emulator, romFilename string
 		{
 
 			switch {
-			case window.CodeIsDown(glimmer.CodeF1):
+			case window.CodeIsDown(glimmer.KeyCodeF1):
 				newInput.ResetButton = true
-			case window.CodeIsDown(glimmer.CodeF2):
+			case window.CodeIsDown(glimmer.KeyCodeF2):
 				newInput.ClearScreenButton = true
-			case window.CodeIsDown(glimmer.CodeF11):
+			case window.CodeIsDown(glimmer.KeyCodeF11):
 				hyperMode = true
 			}
 
-			if window.CodeIsDown(glimmer.CodeF4) {
+			if window.CodeIsDown(glimmer.KeyCodeF4) {
 				snapshotMode = 'm'
-			} else if window.CodeIsDown(glimmer.CodeF9) {
+			} else if window.CodeIsDown(glimmer.KeyCodeF9) {
 				snapshotMode = 'l'
 			} else {
 				snapInProgress = false
@@ -110,7 +117,7 @@ func startEmu(window *glimmer.WindowState, emu a1go.Emulator, romFilename string
 
 			if snapshotMode == 'x' && lastNumDown == 'x' {
 				window.CopyKeyCharArray(newInput.Keys[:])
-				newInput.Keys['\r'] = window.CodeIsDown(glimmer.CodeReturnEnter)
+				newInput.Keys['\r'] = window.CodeIsDown(glimmer.KeyCodeEnter)
 			}
 		}
 		window.InputMutex.Unlock()
@@ -152,14 +159,16 @@ func startEmu(window *glimmer.WindowState, emu a1go.Emulator, romFilename string
 		emu.Step()
 
 		if emu.FlipRequested() {
+			frameTimer.MarkRenderComplete()
 			window.RenderMutex.Lock()
 			copy(window.Pix, emu.Framebuffer())
-			window.RequestDraw()
 			window.RenderMutex.Unlock()
 
 			if !hyperMode {
-				frameTimer.WaitForFrametime()
+				<-window.DrawNotifier
 			}
+			frameTimer.MarkFrameComplete()
+			frameTimer.PrintStatsEveryXFrames(60 * 5)
 		}
 	}
 }
